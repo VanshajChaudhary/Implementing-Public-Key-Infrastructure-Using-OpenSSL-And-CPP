@@ -1,0 +1,292 @@
+// #include<bits/stdc++.h>
+// #include<openssl/ssl.h>
+// #include <openssl/err.h>
+// #include <sys/socket.h>
+// #include <netinet/in.h>  // Required for struct sockaddr_in, htons, etc.
+// #include <arpa/inet.h>   // Optional, for inet_pton etc.
+
+// #include "../include/ca_setup.hpp"
+
+// using namespace std;
+
+
+// int main(){
+
+//     // Step 1: Initialize OpenSSL (once)
+
+//     SSL_library_init();         // ALWAYS RETURNS 1
+//     SSL_load_error_strings();
+//     OpenSSL_add_all_algorithms();
+
+
+//     // Step 2: Create SSL_CTX (client-side context)
+
+//     SSL_CTX*  clientCTX = SSL_CTX_new(TLS_client_method());
+//     if ( !(clientCTX)){
+//         cerr<< "clientCTX Not Created" << endl;
+//         return 1;
+//     }
+
+
+//     // Step 3: Load Client Certificate and Pvt Key
+
+//     if ( !(SSL_CTX_use_certificate_file(clientCTX, "../KeysAndCerts/Client_Certificicate.pem", SSL_FILETYPE_PEM )) ){
+//         cerr << "Failed to Load Client Certificate" << endl;
+//         ERR_print_errors_fp(stderr);
+//         SSL_CTX_free(clientCTX);
+//         return 1;
+//     }    
+
+//     if ( !(SSL_CTX_use_PrivateKey_file(clientCTX, "../KeysAndCerts/Client_PrivateKey.pem", SSL_FILETYPE_PEM))){
+//         cerr << "Failed to load Client Private Key" << endl;
+//         ERR_print_errors_fp(stderr);  // Display OpenSSL error stack
+//         SSL_CTX_free(clientCTX);
+//         return 1;
+//     }
+
+//     if ( !(SSL_CTX_check_private_key(clientCTX))){  // Checks the Pvt Key of Client with it's certificate
+//         cerr << "Client Private Key doesn't Match with Client Certificate" << endl;
+//         ERR_print_errors_fp(stderr);  // Display OpenSSL error stack
+//         SSL_CTX_free(clientCTX);
+//         return 1;
+//     }  
+
+
+
+//     // Step 4: Load & Trust Root CA Certificate
+
+
+//     // Load trusted CA cert for verifying client
+//     if ( !(SSL_CTX_load_verify_locations(clientCTX, "../KeysAndCerts/RootCA_Certificate.pem", NULL))){
+//         cerr << "Failed to Load CA Certificate" << endl;
+//         ERR_print_errors_fp(stderr);
+//         SSL_CTX_free(clientCTX);
+//         return 1;
+//     } 
+
+//     // Enforce client certificate verification
+//     SSL_CTX_set_verify(clientCTX, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+
+//     // Step 4. Socket Creation and Binding 
+
+//     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+//     int port = 8080;
+
+//     struct sockaddr_in server_addr;
+//     memset(&server_addr, 0, sizeof(server_addr));
+//     server_addr.sin_family = AF_INET;
+//     server_addr.sin_addr.s_addr = INADDR_ANY;
+//     server_addr.sin_port = htons(port);
+
+//     if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+//         perror("bind failed");
+//         exit(EXIT_FAILURE);
+//     }
+
+//     if (listen(server_fd, SOMAXCONN) < 0) {
+//         perror("Listen failed");
+//         close(server_fd);
+//         return 1;
+//     }
+
+//     struct sockaddr_in client_addr;
+//     socklen_t addr_len = sizeof(client_addr);
+//     int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_len);
+//     if (client_fd < 0) {
+//         perror("Accept failed");
+//         close(server_fd);
+//         return 1;
+//     }
+
+//     SSL* ssl = SSL_new(clientCTX);
+//     SSL_set_fd(ssl, client_fd);
+
+//     int ssl_accept_status = SSL_accept(ssl);
+//     if (ssl_accept_status <= 0) {
+//         ERR_print_errors_fp(stderr);
+//         SSL_free(ssl);
+//         close(client_fd);
+//         close(server_fd);
+//         SSL_CTX_free(clientCTX);
+//         return 1;
+//     }
+
+//     char buffer[4096] = {0};
+
+//     // Step 8: Receive message from client
+//     int bytes_read = SSL_read(ssl, buffer, sizeof(buffer));
+//     if (bytes_read <= 0) {
+//         cerr << "Failed to read data from client over SSL" << endl;
+//         ERR_print_errors_fp(stderr);
+//     } else {
+//         cout << "📩 Secure message received from client: " << buffer << endl;
+//     }
+
+//     // Step 9: Send reply to client
+//     const char* reply = "Hello from Secure Server!";
+//     int bytes_written = SSL_write(ssl, reply, strlen(reply));
+//     if (bytes_written <= 0) {
+//         cerr << "Failed to send data to client over SSL" << endl;
+//         ERR_print_errors_fp(stderr);
+//     }
+
+//     // Step 10: Cleanup and shutdown
+
+//     SSL_shutdown(ssl);       // Gracefully close the SSL session
+//     SSL_free(ssl);           // Free the SSL structure
+//     close(client_fd);        // Close the accepted client socket
+//     close(server_fd);        // Close the server listening socket
+//     SSL_CTX_free(clientCTX); // Free the SSL context
+
+
+// return 0;
+
+// }
+
+
+#include <bits/stdc++.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>  // for close()
+#include "../include/cxxopts.hpp"
+
+using namespace std;
+
+int main(int argc, char* argv[]){
+
+        cxxopts::Options options("PKI Client", "CLI-based Secure Client using OpenSSL");
+
+    options.add_options()
+        ("host", "Server address (IP)", cxxopts::value<std::string>()->default_value("127.0.0.1"))
+        ("p,port", "Server port", cxxopts::value<int>()->default_value("8080"))
+        ("cert", "Client certificate path", cxxopts::value<std::string>())
+        ("key", "Client private key path", cxxopts::value<std::string>())
+        ("ca", "CA certificate path", cxxopts::value<std::string>()->default_value("./KeysAndCerts/RootCA_Certificate.pem"))
+        ("help", "Print help");
+
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help")) {
+        cout << options.help() << endl;
+        return 0;
+    }
+
+    std::string host = result["host"].as<std::string>();
+    int port = result["port"].as<int>();
+    std::string certPath = result["cert"].as<std::string>();
+    std::string keyPath = result["key"].as<std::string>();
+    std::string caPath = result["ca"].as<std::string>();
+
+
+    // Step 1: Initialize OpenSSL
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    // Step 2: Create SSL_CTX for client
+    SSL_CTX* clientCTX = SSL_CTX_new(TLS_client_method());
+    if (!clientCTX) {
+        cerr << "Failed to create clientCTX\n";
+        return 1;
+    }
+
+    // Step 3: Load client certificate and private key
+    if (!SSL_CTX_use_certificate_file(clientCTX, "/home/avdesh_chaudhary/PKI/KeysAndCerts/Client_Certificate.pem", SSL_FILETYPE_PEM)) {
+        cerr << "Failed to load client certificate\n";
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    if (!SSL_CTX_use_PrivateKey_file(clientCTX, "/home/avdesh_chaudhary/PKI/KeysAndCerts/Client_PrivateKey.pem", SSL_FILETYPE_PEM)) {
+        cerr << "Failed to load client private key\n";
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    if (!SSL_CTX_check_private_key(clientCTX)) {
+        cerr << "Client private key does not match certificate\n";
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    caPath = result["ca"].as<std::string>();
+
+    // Step 4: Load CA certificate to verify the server
+    if (!SSL_CTX_load_verify_locations(clientCTX, "/home/avdesh_chaudhary/PKI/KeysAndCerts/RootCA_Certificate.pem", NULL)) {
+        cerr << "Failed to load CA certificate\n";
+        ERR_print_errors_fp(stderr);
+        return 1;
+    }
+
+    SSL_CTX_set_verify(clientCTX, SSL_VERIFY_PEER, NULL); // Optional: strict server verification
+
+
+    // Step 5: Create socket and connect to server
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    cout << "Socket Created Successfully" << endl;
+
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(8080);
+
+    if (inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
+        perror("Invalid address");
+        return 1;
+    }
+
+    if (connect(sockfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        perror("Connection to server failed");
+        return 1;
+    }
+
+    cout << "Connection to sever made" << endl;
+
+    // Step 6: Create SSL object and attach to socket
+    SSL* ssl = SSL_new(clientCTX);
+    SSL_set_fd(ssl, sockfd);
+
+    // Step 7: Start TLS handshake from client side
+    if (SSL_connect(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+        SSL_free(ssl);
+        close(sockfd);
+        SSL_CTX_free(clientCTX);
+        return 1;
+    }
+
+    // Step 8: Send message to server
+    const char* msg = "Hello from Secure Client!";
+    int bytes_written = SSL_write(ssl, msg, strlen(msg));
+    if (bytes_written <= 0) {
+        cerr << "Failed to send message to server\n";
+        ERR_print_errors_fp(stderr);
+    }
+
+    // Step 9: Receive reply
+    char buffer[4096] = {0};
+    int bytes_read = SSL_read(ssl, buffer, sizeof(buffer));
+    if (bytes_read <= 0) {
+        cerr << "Failed to receive reply from server\n";
+        ERR_print_errors_fp(stderr);
+    } else {
+        cout << "Secure reply from server: " << buffer << endl;
+    }
+
+    // Step 10: Cleanup
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+    close(sockfd);
+    SSL_CTX_free(clientCTX);
+
+    return 0;
+}

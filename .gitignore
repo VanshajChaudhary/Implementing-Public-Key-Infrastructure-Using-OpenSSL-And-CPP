@@ -1,0 +1,3 @@
+bin/generate-certs
+bin/pki-client
+bin/pki-server
