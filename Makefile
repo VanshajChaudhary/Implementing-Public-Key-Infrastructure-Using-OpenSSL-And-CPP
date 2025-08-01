@@ -1,37 +1,28 @@
-# Makefile for PKI Project
-
 CXX = g++
-CXXFLAGS = -Wall -Wextra -std=c++17 -Iinclude -Wno-deprecated-declarations
-LDFLAGS = -lssl -lcrypto
+CXXFLAGS = -std=c++17 -Wall -Wextra -Iinclude
 
+# Source files
 SRC_DIR = src
-BIN_DIR = bin
+OBJ_DIR = obj
 
-CLIENT_SRC = $(SRC_DIR)/client.cpp
-SERVER_SRC = $(SRC_DIR)/server.cpp
-CA_SETUP_SRC = $(SRC_DIR)/ca_setup.cpp
-CERTS_SRC = $(SRC_DIR)/keysAndCerts.cpp   # <- Main for generate-certs
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
+OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
-CLIENT_BIN = $(BIN_DIR)/pki-client
-SERVER_BIN = $(BIN_DIR)/pki-server
-CA_SETUP_BIN = $(BIN_DIR)/generate-certs
+# Targets
+all: mini-pki mini-pki-server mini-pki-client
 
-.PHONY: all clean
+mini-pki: $(OBJ_DIR)/main.o $(OBJ_DIR)/ca_setup.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
 
-all: $(BIN_DIR) $(CLIENT_BIN) $(SERVER_BIN) $(CA_SETUP_BIN)
+mini-pki-server: $(OBJ_DIR)/server.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
 
-$(BIN_DIR):
-	mkdir -p $(BIN_DIR)
+mini-pki-client: $(OBJ_DIR)/client.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
 
-$(CLIENT_BIN): $(CLIENT_SRC)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
-
-$(SERVER_BIN): $(SERVER_SRC)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
-
-# Linking both keysAndCerts.cpp (with main) + ca_setup.cpp (with logic)
-$(CA_SETUP_BIN): $(CERTS_SRC) $(CA_SETUP_SRC)
-	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(BIN_DIR)
+	rm -rf $(OBJ_DIR) mini-pki mini-pki-server mini-pki-client

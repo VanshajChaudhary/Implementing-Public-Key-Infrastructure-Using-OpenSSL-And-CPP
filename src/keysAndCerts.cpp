@@ -1,383 +1,126 @@
-// #include<bits/stdc++.h>
-// #include<openssl/x509.h>
-// #include <openssl/x509v3.h>
-// #include <openssl/evp.h>
-// #include <openssl/rsa.h>
-// #include <openssl/pem.h>  // Required for PEM_write_RSAPrivateKey
-// #include <openssl/asn1.h>
-// #include "../include/ca_setup.hpp"
-// #include "../include/cxxopts.hpp"
-
-
-// #define ONEDAY 24*60*60
-
-
-// using namespace std;
-
-
-// int main(){
-
-
-//     cout << endl;
-
-
-
-//     /*CA Creation*/ 
-
-//     cout << "--------Generation of Certificate Authority--------" << endl;
-
-//     // Key Generation
-
-//     int bits;
-//     cout << "Enter the No of Bits (2048 bits or 4096 bits) :" ;
-//     cin >> bits; 
-//     cout << endl;
-
-//     EVP_PKEY* ca_key = keyGeneration(bits);
-//     if ( !(ca_key) ){
-//         return 1;
-//     }
-
-
-//     // CA Creation
-
-
-//     int validity; 
-//     cout << "Enter the No. of Validity days : " ;
-//     cin >> validity;
-
-//     string CA_Cert_FilePath;
-//     cout << "Enter File name to save Root certificate in .pem format : ";
-//     cin >> CA_Cert_FilePath;
-
-
-//     X509* CAcert = CA_Creation(ca_key, validity, CA_Cert_FilePath);
-//     if ( !(CAcert) ){
-
-//         EVP_PKEY_free(ca_key);
-
-//         return 1;
-//     }
-
-
-
-//     /*Server Side */ 
-    
-//     cout << endl << "-------- Generation of Server side Keys and Certificates --------" << endl;
-
-//     // Key Generation
-
-//     EVP_PKEY* server_key = keyGeneration(bits);
-//     if ( !(server_key) ){
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         return 1;
-//     }
-
-//     // Creation of CSR
-
-//     string Server_CSRFilePath;
-//     cout << " Enter the CSR FileName and Path for Server : ";
-//     cin >> Server_CSRFilePath;
-
-//     // EVP_PKEY* csr_key = keyGeneration(bits);
-//     // if ( !(csr_key) ){
-//     //     EVP_PKEY_free(ca_key);
-//     //     return 1;
-//     // }
-
-
-//     X509_REQ* createCSR_Server = CSR_Creation(server_key, Server_CSRFilePath);
-    
-//     if ( !(createCSR_Server) ){
-
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-
-//     return 1;
-//     }
-
-
-//     // SIGNING THE CSR WITH CA KEY
-
-
-//     string Server_CertificateFilePath;
-//     cout << "Enter Certificate Name and File Path for Server : " ;
-//     cin >> Server_CertificateFilePath;
-
-//     X509* signingCSR_Server = signCSR(createCSR_Server, ca_key, CAcert, validity, Server_CertificateFilePath);
-
-//     if( !(signingCSR_Server) ){
-        
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-
-//     return 1;
-//     }
-
-//     // VERIFICATION
-
-
-//     if ( !(certificateVerification(Server_CertificateFilePath, CA_Cert_FilePath)) ){
-        
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-//         X509_free(signingCSR_Server);
-
-//         return 1;
-//     }
-
-
-
-//     /*Client Side */ 
-    
-//     cout << endl << "-------- Generation of Client side Keys and Certificates --------" << endl;
-
-//     // Key Generation
-
-//     EVP_PKEY* client_key = keyGeneration(bits);
-//     if ( !(client_key) ){
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-//         X509_free(signingCSR_Server);  
-//         return 1;
-//     }
-
-//     // Creation of CSR
-
-//     string Client_CSRFilePath;
-//     cout << " Enter the CSR FileName and Path for Client: ";
-//     cin >> Client_CSRFilePath;
-
-//     // EVP_PKEY* csr_key = keyGeneration(bits);
-//     // if ( !(csr_key) ){
-//     //     EVP_PKEY_free(ca_key);
-//     //     return 1;
-//     // }
-
-
-//     X509_REQ* createCSR_Client = CSR_Creation(client_key, Client_CSRFilePath);
-    
-//     if ( !(createCSR_Client) ){
-
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-//         X509_free(signingCSR_Server);  
-//         EVP_PKEY_free(client_key);
-
-//     return 1;
-//     }
-
-
-//     /*SIGNING THE CSR WITH CA KEY*/
-
-
-//     string Client_CertificateFilePath;
-//     cout << "Enter Certificate Name and File Path for Client: " ;
-//     cin >> Client_CertificateFilePath;
-
-//     X509* signingCSR_Client = signCSR(createCSR_Client, ca_key, CAcert, validity, Client_CertificateFilePath);
-
-//     if( !(signingCSR_Client) ){
-        
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-//         X509_free(signingCSR_Server);  
-//         EVP_PKEY_free(client_key);
-//         X509_REQ_free(createCSR_Client);        
-
-//     return 1;
-//     }
-
-//     // VERIFICATION
-
-
-//     if ( !(certificateVerification(Client_CertificateFilePath, CA_Cert_FilePath)) ){
-        
-//         EVP_PKEY_free(ca_key);
-//         X509_free(CAcert);       
-//         EVP_PKEY_free(server_key);
-//         X509_REQ_free(createCSR_Server);
-//         X509_free(signingCSR_Server);  
-//         EVP_PKEY_free(client_key);
-//         X509_REQ_free(createCSR_Client);
-//         X509_free(signingCSR_Client);          
-
-//         return 1;
-//     }
-
-
-
-// }
-
-
-
-// NEW CLI BASED CODE 
-
-#include <iostream>
-#include <fstream>
-#include "../include/ca_setup.hpp"
+#include <bits/stdc++.h>
 #include "../include/cxxopts.hpp"
+#include "../include/ca_setup.hpp"
 
 using namespace std;
 
 int main(int argc, char* argv[]) {
     try {
-        cxxopts::Options options("mini-pki", "Modular PKI Tool using OpenSSL");
+        cxxopts::Options options("mini-pki", "CLI-based PKI Tool");
 
         options.add_options()
-            ("init-ca", "Generate CA Key & Self-Signed Certificate")
-            ("generate-csr", "Generate Key and CSR")
-            ("sign-csr", "Sign CSR using CA")
-            ("verify-cert", "Verify certificate using CA certificate")
-
+            ("init-ca", "Initialize Root CA")
+            ("gen-csr", "Generate CSR")
+            ("sign-csr", "Sign a CSR using CA")
+            ("verify-cert", "Verify a certificate")
             ("cn", "Common Name (CN)", cxxopts::value<string>())
-            ("csr-file", "Path to CSR file", cxxopts::value<string>())
-            ("cert-out", "Output path for signed certificate", cxxopts::value<string>())
+            ("csr", "Path to CSR file", cxxopts::value<string>())
             ("cert", "Certificate to verify", cxxopts::value<string>())
-            ("ca", "CA certificate path", cxxopts::value<string>())
-            ("key-out", "Private key output file", cxxopts::value<string>())
-            ("csr-out", "CSR output file", cxxopts::value<string>())
-            ("cert-out-ca", "CA Certificate output file", cxxopts::value<string>())
+            ("out", "Output certificate path", cxxopts::value<string>())
+            ("key-bits", "RSA key size (default 2048)", cxxopts::value<int>()->default_value("2048"))
+            ("help", "Print help");
 
-            ("h,help", "Print usage");
+        auto result_args = options.parse(argc, argv);
 
-        auto result = options.parse(argc, argv);
-
-        if (result.count("help") || argc == 1) {
+        if (result_args.count("help") || argc == 1) {
             cout << options.help() << endl;
             return 0;
         }
 
-        // --- INIT CA ---
-        if (result.count("init-ca")) {
-            if (!result.count("cn")) {
-                cerr << "❌ Error: --cn required with --init-ca" << endl;
+        int keyBits = result_args["key-bits"].as<int>();
+
+        // ---- Init CA ----
+        if (result_args.count("init-ca")) {
+            if (!result_args.count("cn")) {
+                cerr << "Error: --cn is required for --init-ca\n";
                 return 1;
             }
 
-            string cn = result["cn"].as<string>();
-            string cert_out = result.count("cert-out-ca") ? result["cert-out-ca"].as<string>() : "KeysAndCerts/RootCA_Certificate.pem";
-            string key_out = result.count("key-out") ? result["key-out"].as<string>() : "KeysAndCerts/RootCA_PrivateKey.pem";
-
-            EVP_PKEY* ca_key = keyGeneration(2048);
-            if (!save_private_key(ca_key, key_out.c_str())) {
-                cerr << "❌ Failed to save CA private key" << endl;
-                return 1;
-            }
+            string cn = result_args["cn"].as<string>();
+            EVP_PKEY* ca_key = keyGeneration(keyBits);
+            save_private_key(ca_key, "KeysAndCerts/ca_private_key.pem");
 
             X509* ca_cert = create_self_signed_cert(ca_key, 365, cn);
-            if (!save_cert_to_pem(ca_cert, cert_out.c_str())) {
-                cerr << "❌ Failed to save CA certificate" << endl;
-                return 1;
-            }
+            save_cert_to_pem(ca_cert, "KeysAndCerts/ca_cert.pem");
 
-            cout << "✅ CA certificate and key generated." << endl;
+            cout << "CA key and certificate generated successfully.\n";
         }
 
-        // --- GENERATE CSR ---
-        else if (result.count("generate-csr")) {
-            if (!result.count("cn")) {
-                cerr << "❌ Error: --cn required with --generate-csr" << endl;
+        // ---- Generate CSR ----
+        else if (result_args.count("gen-csr")) {
+            if (!result_args.count("cn")) {
+                cerr << "Error: --cn is required for --gen-csr\n";
                 return 1;
             }
 
-            string cn = result["cn"].as<string>();
-            string key_out = result.count("key-out") ? result["key-out"].as<string>() : "KeysAndCerts/Server_PrivateKey.pem";
-            string csr_out = result.count("csr-out") ? result["csr-out"].as<string>() : "KeysAndCerts/Server_CSR.pem";
+            string cn = result_args["cn"].as<string>();
+            EVP_PKEY* key = keyGeneration(keyBits);
+            save_private_key(key, "KeysAndCerts/CA_private_key.pem");
 
-            EVP_PKEY* key = keyGeneration(2048);
-            if (!save_private_key(key, key_out.c_str())) {
-                cerr << "❌ Failed to save private key" << endl;
-                return 1;
-            }
+            X509_REQ* req = create_csr(key, cn);
+            save_csr_to_file(req, "KeysAndCerts/CA_csr.pem");
 
-            X509_REQ* csr = create_csr(key, cn);
-            if (!save_csr_to_file(csr, csr_out.c_str())) {
-                cerr << "❌ Failed to save CSR" << endl;
-                return 1;
-            }
-
-            cout << "✅ CSR and private key generated." << endl;
+            cout << "Private key and CSR generated successfully.\n";
         }
 
-        // --- SIGN CSR ---
-        else if (result.count("sign-csr")) {
-            if (!result.count("csr-file") || !result.count("cert-out")) {
-                cerr << "❌ Error: --csr-file and --cert-out required with --sign-csr" << endl;
+        // ---- Sign CSR ----
+        else if (result_args.count("sign-csr")) {
+            if (!result_args.count("csr") || !result_args.count("out")) {
+                cerr << "Error: --csr and --out are required for --sign-csr\n";
                 return 1;
             }
 
-            string csr_file = result["csr-file"].as<string>();
-            string cert_out = result["cert-out"].as<string>();
+            string csrPath = result_args["csr"].as<string>();
+            string outPath = result_args["out"].as<string>();
 
-            EVP_PKEY* ca_key = EVP_PKEY_new();
-            X509* ca_cert = load_certificate_from_file("KeysAndCerts/RootCA_Certificate.pem");
+            FILE* caKeyFile = fopen("KeysAndCerts/ca_private_key.pem", "r");
+            FILE* caCertFile = fopen("KeysAndCerts/ca_cert.pem", "r");
+            FILE* csrFile = fopen(csrPath.c_str(), "r");
 
-            FILE* ca_key_fp = fopen("KeysAndCerts/RootCA_PrivateKey.pem", "r");
-            if (!ca_key_fp || !PEM_read_PrivateKey(ca_key_fp, &ca_key, NULL, NULL)) {
-                cerr << "❌ Failed to load CA private key" << endl;
-                return 1;
-            }
-            fclose(ca_key_fp);
-
-            FILE* csr_fp = fopen(csr_file.c_str(), "r");
-            if (!csr_fp) {
-                cerr << "❌ Failed to open CSR file" << endl;
-                return 1;
-            }
-            X509_REQ* csr = PEM_read_X509_REQ(csr_fp, NULL, NULL, NULL);
-            fclose(csr_fp);
-
-            X509* signed_cert = sign_csr_with_ca(csr, ca_key, ca_cert, 365);
-            if (!save_cert_to_pem(signed_cert, cert_out.c_str())) {
-                cerr << "❌ Failed to save signed certificate" << endl;
+            if (!caKeyFile || !caCertFile || !csrFile) {
+                cerr << "Error: Failed to open CA key/cert or CSR file.\n";
                 return 1;
             }
 
-            cout << "✅ CSR signed and certificate saved." << endl;
+            EVP_PKEY* ca_key = PEM_read_PrivateKey(caKeyFile, nullptr, nullptr, nullptr);
+            X509* ca_cert = PEM_read_X509(caCertFile, nullptr, nullptr, nullptr);
+            X509_REQ* csr = PEM_read_X509_REQ(csrFile, nullptr, nullptr, nullptr);
+
+            fclose(caKeyFile);
+            fclose(caCertFile);
+            fclose(csrFile);
+
+            if (!ca_key || !ca_cert || !csr) {
+                cerr << "Error: Failed to parse CA key, cert, or CSR.\n";
+                return 1;
+            }
+
+            X509* signedCert = sign_csr_with_ca(csr, ca_key, ca_cert, 365);
+            save_cert_to_pem(signedCert, outPath.c_str());
+
+            cout << "CSR signed successfully. Certificate saved to: " << outPath << endl;
         }
 
-        // --- VERIFY CERT ---
-        else if (result.count("verify-cert")) {
-            if (!result.count("cert") || !result.count("ca")) {
-                cerr << "❌ Error: --cert and --ca required with --verify-cert" << endl;
+        // ---- Verify Certificate ----
+        else if (result_args.count("verify-cert")) {
+            if (!result_args.count("cert")) {
+                cerr << "Error: --cert is required for --verify-cert\n";
                 return 1;
             }
 
-            string cert_file = result["cert"].as<string>();
-            string ca_file = result["ca"].as<string>();
+            string certPath = result_args["cert"].as<string>();
+            bool verifyResult = verify_cert(certPath.c_str(), "KeysAndCerts/ca_cert.pem");
 
-            if (verify_cert(cert_file.c_str(), ca_file.c_str())) {
-                cout << "✅ Certificate verification succeeded." << endl;
-            } else {
-                cout << "❌ Certificate verification failed." << endl;
-                return 1;
-            }
+            if (verifyResult)
+                cout << "✅ Certificate is valid and verified.\n";
+            else
+                cout << "❌ Certificate verification failed.\n";
         }
 
-        else {
-            cerr << "❌ No valid operation specified. Use --help to see options." << endl;
-            return 1;
-        }
-
-    } catch (const std::exception& e){
-        cerr << "❌ Error parsing options: " << e.what() << endl;
+    } catch (const std::exception& e) {
+        cerr << "Error: " << e.what() << endl;
         return 1;
     }
 
     return 0;
 }
-
-

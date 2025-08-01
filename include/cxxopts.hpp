@@ -1925,6 +1925,7 @@ class OptionParser
 
   ParsedHashMap m_parsed{};
   NameHashMap m_keys{};
+  
 };
 
 class Options
@@ -2303,160 +2304,160 @@ format_description
   }
 
   return result;
-}
+  }
 
-} // namespace
+  } // namespace
 
-inline
-void
-Options::add_options
-(
-  const std::string &group,
-  std::initializer_list<Option> options
-)
-{
- OptionAdder option_adder(*this, group);
- for (const auto &option: options)
- {
-   option_adder(option.opts_, option.desc_, option.value_, option.arg_help_);
- }
-}
-
-inline
-OptionAdder
-Options::add_options(std::string group)
-{
-  return OptionAdder(*this, std::move(group));
-}
-
-inline
-OptionAdder&
-OptionAdder::operator()
-(
-  const std::string& opts,
-  const std::string& desc,
-  const std::shared_ptr<const Value>& value,
-  std::string arg_help
-)
-{
-  OptionNames option_names = values::parser_tool::split_option_names(opts);
-    // Note: All names will be non-empty; but we must separate the short
-    // (length-1) and longer names
-  std::string short_name {""};
-  auto first_short_name_iter =
-    std::partition(option_names.begin(), option_names.end(),
-      [&](const std::string& name) { return name.length() > 1; }
-    );
-  auto num_length_1_names = (option_names.end() - first_short_name_iter);
-  switch(num_length_1_names) {
-  case 1:
-    short_name = *first_short_name_iter;
-    option_names.erase(first_short_name_iter);
-    CXXOPTS_FALLTHROUGH;
-  case 0:
-    break;
-  default:
-    throw_or_mimic<exceptions::invalid_option_format>(opts);
-  };
-
-  m_options.add_option
+  inline
+  void
+  Options::add_options
   (
-    m_group,
-    short_name,
-    option_names,
-    desc,
-    value,
-    std::move(arg_help)
-  );
-
-  return *this;
-}
-
-inline
-void
-OptionParser::parse_default(const std::shared_ptr<OptionDetails>& details)
-{
-  // TODO: remove the duplicate code here
-  auto& store = m_parsed[details->hash()];
-  store.parse_default(details);
-  m_defaults.emplace_back(details->essential_name(), details->value().get_default_value());
-}
-
-inline
-void
-OptionParser::parse_no_value(const std::shared_ptr<OptionDetails>& details)
-{
-  auto& store = m_parsed[details->hash()];
-  store.parse_no_value(details);
-}
-
-inline
-void
-OptionParser::parse_option
-(
-  const std::shared_ptr<OptionDetails>& value,
-  const std::string& /*name*/,
-  const std::string& arg
-)
-{
-  auto hash = value->hash();
-  auto& result = m_parsed[hash];
-  result.parse(value, arg);
-
-  m_sequential.emplace_back(value->essential_name(), arg);
-}
-
-inline
-void
-OptionParser::checked_parse_arg
-(
-  int argc,
-  const char* const* argv,
-  int& current,
-  const std::shared_ptr<OptionDetails>& value,
-  const std::string& name
-)
-{
-  if (current + 1 >= argc)
+    const std::string &group,
+    std::initializer_list<Option> options
+  )
   {
-    if (value->value().has_implicit())
+  OptionAdder option_adder(*this, group);
+  for (const auto &option: options)
+  {
+    option_adder(option.opts_, option.desc_, option.value_, option.arg_help_);
+  }
+  }
+
+  inline
+  OptionAdder
+  Options::add_options(std::string group)
+  {
+    return OptionAdder(*this, std::move(group));
+  }
+
+  inline
+  OptionAdder&
+  OptionAdder::operator()
+  (
+    const std::string& opts,
+    const std::string& desc,
+    const std::shared_ptr<const Value>& value,
+    std::string arg_help
+  )
+  {
+    OptionNames option_names = values::parser_tool::split_option_names(opts);
+      // Note: All names will be non-empty; but we must separate the short
+      // (length-1) and longer names
+    std::string short_name {""};
+    auto first_short_name_iter =
+      std::partition(option_names.begin(), option_names.end(),
+        [&](const std::string& name) { return name.length() > 1; }
+      );
+    auto num_length_1_names = (option_names.end() - first_short_name_iter);
+    switch(num_length_1_names) {
+    case 1:
+      short_name = *first_short_name_iter;
+      option_names.erase(first_short_name_iter);
+      CXXOPTS_FALLTHROUGH;
+    case 0:
+      break;
+    default:
+      throw_or_mimic<exceptions::invalid_option_format>(opts);
+    };
+
+    m_options.add_option
+    (
+      m_group,
+      short_name,
+      option_names,
+      desc,
+      value,
+      std::move(arg_help)
+    );
+
+    return *this;
+  }
+
+  inline
+  void
+  OptionParser::parse_default(const std::shared_ptr<OptionDetails>& details)
+  {
+    // TODO: remove the duplicate code here
+    auto& store = m_parsed[details->hash()];
+    store.parse_default(details);
+    m_defaults.emplace_back(details->essential_name(), details->value().get_default_value());
+  }
+
+  inline
+  void
+  OptionParser::parse_no_value(const std::shared_ptr<OptionDetails>& details)
+  {
+    auto& store = m_parsed[details->hash()];
+    store.parse_no_value(details);
+  }
+
+  inline
+  void
+  OptionParser::parse_option
+  (
+    const std::shared_ptr<OptionDetails>& value,
+    const std::string& /*name*/,
+    const std::string& arg
+  )
+  {
+    auto hash = value->hash();
+    auto& result = m_parsed[hash];
+    result.parse(value, arg);
+
+    m_sequential.emplace_back(value->essential_name(), arg);
+  }
+
+  inline
+  void
+  OptionParser::checked_parse_arg
+  (
+    int argc,
+    const char* const* argv,
+    int& current,
+    const std::shared_ptr<OptionDetails>& value,
+    const std::string& name
+  )
+  {
+    if (current + 1 >= argc)
     {
-      parse_option(value, name, value->value().get_implicit_value());
+      if (value->value().has_implicit())
+      {
+        parse_option(value, name, value->value().get_implicit_value());
+      }
+      else
+      {
+        throw_or_mimic<exceptions::missing_argument>(name);
+      }
     }
     else
     {
-      throw_or_mimic<exceptions::missing_argument>(name);
+      if (value->value().has_implicit())
+      {
+        parse_option(value, name, value->value().get_implicit_value());
+      }
+      else
+      {
+        parse_option(value, name, argv[current + 1]);
+        ++current;
+      }
     }
   }
-  else
+
+  inline
+  void
+  OptionParser::add_to_option(const std::shared_ptr<OptionDetails>& value, const std::string& arg)
   {
-    if (value->value().has_implicit())
-    {
-      parse_option(value, name, value->value().get_implicit_value());
-    }
-    else
-    {
-      parse_option(value, name, argv[current + 1]);
-      ++current;
-    }
+    auto hash = value->hash();
+    auto& result = m_parsed[hash];
+    result.add(value, arg);
+
+    m_sequential.emplace_back(value->essential_name(), arg);
   }
-}
 
-inline
-void
-OptionParser::add_to_option(const std::shared_ptr<OptionDetails>& value, const std::string& arg)
-{
-  auto hash = value->hash();
-  auto& result = m_parsed[hash];
-  result.add(value, arg);
-
-  m_sequential.emplace_back(value->essential_name(), arg);
-}
-
-inline
-bool
-OptionParser::consume_positional(const std::string& a, PositionalListIterator& next)
-{
+  inline
+  bool
+  OptionParser::consume_positional(const std::string& a, PositionalListIterator& next)
+  {
   while (next != m_positional.end())
   {
     auto iter = m_options.find(*next);
