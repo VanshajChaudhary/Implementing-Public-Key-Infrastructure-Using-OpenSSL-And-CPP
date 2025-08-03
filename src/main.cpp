@@ -2,6 +2,7 @@
 #include "../include/cxxopts.hpp"
 #include "../include/ca_setup.hpp"
 
+
 using namespace std;
 
 int main(int argc, char* argv[]) {
@@ -55,10 +56,10 @@ int main(int argc, char* argv[]) {
 
             string cn = result_args["cn"].as<string>();
             EVP_PKEY* key = keyGeneration(keyBits);
-            save_private_key(key, "KeysAndCerts/CA_private_key.pem");
+            save_private_key(key, "KeysAndCerts/client_private_key.pem");
 
             X509_REQ* req = create_csr(key, cn);
-            save_csr_to_file(req, "KeysAndCerts/CA_csr.pem");
+            save_csr_to_file(req, "KeysAndCerts/client_csr.pem");
 
             cout << "Private key and CSR generated successfully.\n";
         }
