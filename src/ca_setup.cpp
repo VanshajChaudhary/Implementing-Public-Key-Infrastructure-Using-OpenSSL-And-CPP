@@ -200,3 +200,183 @@ bool verify_cert(const char* certPath, const char* caCertPath) {
 
     return (ret == 1);
 }
+
+// ----------------------------------------
+// Certificate Revocation List
+// ----------------------------------------
+
+int revoke_certificate(const std::string& certPath, const std::string& revokedListFile) {
+
+    int returnResult = 2;
+
+    FILE* certFile = fopen(certPath.c_str(), "r");
+    if (!certFile) {
+        cout << "Hello1" << endl;
+        std::cerr << "Error: Unable to open certificate to revoke.\n";
+        return returnResult;
+    }returnResult += 1;
+
+    X509* cert = PEM_read_X509(certFile, nullptr, nullptr, nullptr);
+    fclose(certFile);
+    if (!cert) {
+        cout << "Hello2" << endl;
+        std::cerr << "Error: Failed to read certificate.\n";
+        return returnResult;
+    }returnResult += 1;
+
+    ASN1_INTEGER* serial = X509_get_serialNumber(cert);
+    BIGNUM* bn = ASN1_INTEGER_to_BN(serial, nullptr);
+    char* hex = BN_bn2hex(bn);
+    std::string serialHex(hex);
+
+    BN_free(bn);
+    OPENSSL_free(hex);
+    X509_free(cert);
+
+    std::ofstream file(revokedListFile, std::ios::app);
+    if (!file.is_open()) {
+        cout << "Hello3" << endl;
+        std::cerr << "Error: Failed to open revoked list file.\n";
+        return returnResult;
+    }returnResult += 1;
+
+    cout << "Hello4" << endl;
+    cout << returnResult << endl;
+    cout << "Hello5" << endl;
+
+    file << serialHex << std::endl;
+    cout << "Hello6" << endl;
+
+    file.close();
+    cout << "Hello7" << endl;
+
+    return 0;
+}
+
+int generate_crl(const std::string& caKeyPath, const std::string& caCertPath,
+                 const std::string& revokedListFile, const std::string& crlOutPath) {
+    FILE* caKeyFile = fopen(caKeyPath.c_str(), "r");
+    FILE* caCertFile = fopen(caCertPath.c_str(), "r");
+    if (!caKeyFile || !caCertFile) {
+        std::cerr << "Error: Unable to open CA key or cert.\n";
+        return 1;
+    }
+
+    EVP_PKEY* caKey = PEM_read_PrivateKey(caKeyFile, nullptr, nullptr, nullptr);
+    X509* caCert = PEM_read_X509(caCertFile, nullptr, nullptr, nullptr);
+    fclose(caKeyFile);
+    fclose(caCertFile);
+
+    if (!caKey || !caCert) {
+        std::cerr << "Error: Failed to load CA key/cert.\n";
+        return 1;
+    }
+
+    X509_CRL* crl = X509_CRL_new();
+    X509_CRL_set_version(crl, 1);  // v2
+
+    X509_NAME* issuer = X509_get_subject_name(caCert);
+    X509_CRL_set_issuer_name(crl, issuer);
+
+    ASN1_TIME* lastUpdate = ASN1_TIME_new();
+    ASN1_TIME* nextUpdate = ASN1_TIME_new();
+    ASN1_TIME_set(lastUpdate, time(nullptr));
+    ASN1_TIME_set(nextUpdate, time(nullptr) + 30 * 24 * 3600);  // +30 days
+
+    X509_CRL_set1_lastUpdate(crl, lastUpdate);
+    X509_CRL_set1_nextUpdate(crl, nextUpdate);
+
+    ASN1_TIME_free(lastUpdate);
+    ASN1_TIME_free(nextUpdate);
+
+    std::ifstream infile(revokedListFile);
+    std::string serialHex;
+    while (std::getline(infile, serialHex)) {
+        BIGNUM* bn = nullptr;
+        ASN1_INTEGER* asn1_serial = nullptr;
+
+        BN_hex2bn(&bn, serialHex.c_str());
+        asn1_serial = BN_to_ASN1_INTEGER(bn, nullptr);
+
+        X509_REVOKED* revoked = X509_REVOKED_new();
+        X509_REVOKED_set_serialNumber(revoked, asn1_serial);
+
+        ASN1_TIME* revocationDate = ASN1_TIME_new();
+        ASN1_TIME_set(revocationDate, time(nullptr));
+        X509_REVOKED_set_revocationDate(revoked, revocationDate);
+
+        X509_CRL_add0_revoked(crl, revoked);
+
+        ASN1_TIME_free(revocationDate);
+        ASN1_INTEGER_free(asn1_serial);
+        BN_free(bn);
+    }
+
+    infile.close();
+
+    X509_CRL_sort(crl);
+    X509_CRL_sign(crl, caKey, EVP_sha256());
+
+    FILE* crlOut = fopen(crlOutPath.c_str(), "w+");
+    if (!crlOut || !PEM_write_X509_CRL(crlOut, crl)) {
+        std::cerr << "Error: Failed to write CRL.\n";
+        return 1;
+    }
+
+    fclose(crlOut);
+    X509_CRL_free(crl);
+    EVP_PKEY_free(caKey);
+    X509_free(caCert);
+    return 0;
+}
+
+X509_CRL* create_empty_crl() {
+    X509_CRL* crl = X509_CRL_new();
+    if (!crl) {
+        cerr << "Error: Could not create new CRL structure.\n";
+        return nullptr;
+    }
+
+    // Set version to V2
+    if (!X509_CRL_set_version(crl, 1)) {
+        cerr << "Error: Failed to set CRL version.\n";
+        X509_CRL_free(crl);
+        return nullptr;
+    }
+
+    // Set lastUpdate and nextUpdate
+    ASN1_TIME* lastUpdate = ASN1_TIME_new();
+    ASN1_TIME* nextUpdate = ASN1_TIME_new();
+    ASN1_TIME_set(lastUpdate, time(NULL));
+    ASN1_TIME_set(nextUpdate, time(NULL) + ONEDAY); // Valid for 1 day
+
+    X509_CRL_set1_lastUpdate(crl, lastUpdate);
+    X509_CRL_set1_nextUpdate(crl, nextUpdate);
+
+    ASN1_TIME_free(lastUpdate);
+    ASN1_TIME_free(nextUpdate);
+
+    return crl;
+}
+
+bool save_crl_to_pem(X509_CRL* crl, const char* filepath) {
+    FILE* fp = fopen(filepath, "wb");
+    if (!fp) {
+        cerr << "Error: Could not open CRL file for writing: " << filepath << "\n";
+        return false;
+    }
+    
+    bool success = PEM_write_X509_CRL(fp, crl);
+    fclose(fp);
+    cout << success << endl;
+    cout << "Before PEM_write_X509_CRL" << endl;
+    if (!success) {
+        cerr << "Error: Failed to write CRL to PEM.\n";
+        return false;
+    }
+    cout << "After PEM_write_X509_CRL" << endl;
+
+    return true;
+}
+
+

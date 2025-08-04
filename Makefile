@@ -1,28 +1,47 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -Iinclude
+LDFLAGS = -lssl -lcrypto
+
+SRCDIR = src
+OBJDIR = obj
+BINDIR = .
 
 # Source files
-SRC_DIR = src
-OBJ_DIR = obj
+MAIN_SRC = $(SRCDIR)/main.cpp
+CLIENT_SRC = $(SRCDIR)/client.cpp
+SERVER_SRC = $(SRCDIR)/server.cpp
+CA_SETUP_SRC = $(SRCDIR)/ca_setup.cpp
 
-SRCS = $(wildcard $(SRC_DIR)/*.cpp)
-OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+# Object files
+MAIN_OBJ = $(OBJDIR)/main.o
+CLIENT_OBJ = $(OBJDIR)/client.o
+SERVER_OBJ = $(OBJDIR)/server.o
+CA_SETUP_OBJ = $(OBJDIR)/ca_setup.o
+
+# Binaries
+MAIN_BIN = $(BINDIR)/mini-pki
+CLIENT_BIN = $(BINDIR)/mini-pki-client
+SERVER_BIN = $(BINDIR)/mini-pki-server
 
 # Targets
-all: mini-pki mini-pki-server mini-pki-client
+all: $(MAIN_BIN) $(CLIENT_BIN) $(SERVER_BIN)
 
-mini-pki: $(OBJ_DIR)/main.o $(OBJ_DIR)/ca_setup.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
-
-mini-pki-server: $(OBJ_DIR)/server.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
-
-mini-pki-client: $(OBJ_DIR)/client.o
-	$(CXX) $(CXXFLAGS) -o $@ $^ -lssl -lcrypto
-
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(OBJ_DIR)
+# Compile each object file
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Link the CLI tool
+$(MAIN_BIN): $(MAIN_OBJ) $(CA_SETUP_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Link the client executable
+$(CLIENT_BIN): $(CLIENT_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Link the server executable
+$(SERVER_BIN): $(SERVER_OBJ)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+# Clean build artifacts
 clean:
-	rm -rf $(OBJ_DIR) mini-pki mini-pki-server mini-pki-client
+	rm -f $(OBJDIR)/*.o $(MAIN_BIN) $(CLIENT_BIN) $(SERVER_BIN)

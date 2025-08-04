@@ -43,4 +43,18 @@ bool save_signed_cert_to_file(X509* cert, const char* filepath);
 bool verify_cert(const char* certPath, const char* caCertPath);
 X509* load_certificate_from_file(const char* filepath);
 
+// -------------------------
+// Certificate Revocation List
+// -------------------------
+
+int revoke_certificate(const std::string& certPath, const std::string& revokedListFile);
+int generate_crl(const std::string& caKeyPath, const std::string& caCertPath,
+                 const std::string& revokedListFile, const std::string& crlOutPath);
+
+// Helper functions for CRL handling
+X509_CRL* create_empty_crl();
+bool save_crl_to_pem(X509_CRL* crl, const char* filepath);
+
+
+
 #endif // CA_SETUP_HPP

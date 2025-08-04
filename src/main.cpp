@@ -19,7 +19,11 @@ int main(int argc, char* argv[]) {
             ("cert", "Certificate to verify", cxxopts::value<string>())
             ("out", "Output certificate path", cxxopts::value<string>())
             ("key-bits", "RSA key size (default 2048)", cxxopts::value<int>()->default_value("2048"))
-            ("help", "Print help");
+            ("help", "Print help")
+            ("generate-crl", "Generate CRL")
+            ("revoke-cert", "Revoke a certificate")
+            ("revoke", "Certificate to revoke", cxxopts::value<std::string>())
+            ("crl-out", "CRL output path", cxxopts::value<std::string>());
 
         auto result_args = options.parse(argc, argv);
 
@@ -117,6 +121,41 @@ int main(int argc, char* argv[]) {
             else
                 cout << "❌ Certificate verification failed.\n";
         }
+
+        // ---- Generate CRL ----
+        else if (result_args.count("generate-crl")) {
+        if (!result_args.count("crl-out")) {
+        cerr << "Error: --crl-out is required for --generate-crl\n";
+        return 1;
+        }
+
+        string crlOutPath = result_args["crl-out"].as<string>();
+
+        X509_CRL* crl = create_empty_crl(); // from ca_setup.cpp
+        save_crl_to_pem(crl, crlOutPath.c_str()); // from ca_setup.cpp
+
+        cout << "Empty CRL generated at: " << crlOutPath << endl;
+        }
+
+        // ---- Revoke Certificate ----
+        else if (result_args.count("revoke-cert")) {
+            if (!result_args.count("revoke") || !result_args.count("crl-out")) {
+             cerr << "Error: --revoke and --crl-out are required for --revoke-cert\n";
+        return 1;
+        }
+
+        string certToRevokePath = result_args["revoke"].as<string>();
+        string crlOutPath = result_args["crl-out"].as<string>();
+
+        bool success = revoke_certificate(certToRevokePath, crlOutPath);
+        cout << success << endl;
+        if (success == 0)
+            cout << "Certificate revoked and CRL updated at: " << crlOutPath << endl;
+        else
+            cout << "Failed to revoke certificate.\n";
+        }
+
+        
 
     } catch (const std::exception& e) {
         cerr << "Error: " << e.what() << endl;

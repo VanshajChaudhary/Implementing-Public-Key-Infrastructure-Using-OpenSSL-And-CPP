@@ -1,6 +1,7 @@
 #include <iostream>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/x509_vfy.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <cstring>
@@ -10,6 +11,7 @@
 #define CERT_FILE "KeysAndCerts/client_cert.pem"
 #define KEY_FILE "KeysAndCerts/client_private_key.pem"
 #define CA_CERT_FILE "KeysAndCerts/ca_cert.pem"
+#define CRL_FILE "KeysAndCerts/ca_crl.pem"
 
 void init_openssl() {
     SSL_load_error_strings();
@@ -38,14 +40,45 @@ void configure_context(SSL_CTX* ctx) {
         exit(EXIT_FAILURE);
     }
 
-    // Load and trust the CA cert
-    if (!SSL_CTX_load_verify_locations(ctx, CA_CERT_FILE, nullptr)) {
+    // Create a new X509 store and load CA cert
+    X509_STORE* store = X509_STORE_new();
+    if (!store) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, nullptr);
-    SSL_CTX_set_verify_depth(ctx, 1);
+    X509_LOOKUP* lookup = X509_STORE_add_lookup(store, X509_LOOKUP_file());
+    if (!lookup || !X509_LOOKUP_load_file(lookup, CA_CERT_FILE, X509_FILETYPE_PEM)) {
+        std::cerr << "Failed to load CA cert into store\n";
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    // Load CRL
+    X509_CRL* crl = nullptr;
+    FILE* crl_file = fopen(CRL_FILE, "r");
+    if (!crl_file || !(crl = PEM_read_X509_CRL(crl_file, nullptr, nullptr, nullptr))) {
+        std::cerr << "Failed to load CRL file\n";
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+    fclose(crl_file);
+
+    if (X509_STORE_add_crl(store, crl) != 1) {
+        std::cerr << "Failed to add CRL to store\n";
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    // Set CRL flags
+    X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+
+    // Attach store to SSL_CTX
+    SSL_CTX_set_cert_store(ctx, store);
+
+    // Also enable peer verification
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, nullptr);
+    SSL_CTX_set_verify_depth(ctx, 2);
 }
 
 int main() {
@@ -54,7 +87,7 @@ int main() {
     configure_context(ctx);
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    sockaddr_in addr;
+    sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(PORT);
     inet_pton(AF_INET, SERVER_IP, &addr.sin_addr);
@@ -68,16 +101,19 @@ int main() {
     SSL_set_fd(ssl, sock);
 
     if (SSL_connect(ssl) <= 0) {
+        std::cerr << "TLS handshake failed. Possibly due to revoked server certificate.\n";
         ERR_print_errors_fp(stderr);
     } else {
         std::cout << "TLS handshake successful.\n";
 
-        std::string msg = "Hello from Secure Client!";
-        SSL_write(ssl, msg.c_str(), msg.length());
-
         char buffer[1024] = {0};
         SSL_read(ssl, buffer, sizeof(buffer));
         std::cout << "Server says: " << buffer << "\n";
+        
+        std::string msg = "Hello from Secure Client!";
+        SSL_write(ssl, msg.c_str(), msg.length());
+         
+
     }
 
     SSL_shutdown(ssl);
