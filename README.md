@@ -19,4 +19,7 @@ Commands to Run
   
 
 ./mini-pki-server
+
 ./mini-pki-client
+
+Run the sever and the client pki commands in different terminals 
