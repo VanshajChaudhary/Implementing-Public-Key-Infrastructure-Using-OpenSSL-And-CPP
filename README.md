@@ -1,7 +1,7 @@
 # Implementing Public Key Infrastructure using OpenSSL and C++
 
 
-<!-- Commands to Run
+Commands to Run
 
 1. make
 2. ./mini-pki --init-ca --cn "My Root CA"
@@ -19,4 +19,4 @@
   
 
 ./mini-pki-server
-./mini-pki-client -->
+./mini-pki-client
