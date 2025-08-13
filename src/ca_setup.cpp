@@ -211,7 +211,6 @@ int revoke_certificate(const std::string& certPath, const std::string& revokedLi
 
     FILE* certFile = fopen(certPath.c_str(), "r");
     if (!certFile) {
-        cout << "Hello1" << endl;
         std::cerr << "Error: Unable to open certificate to revoke.\n";
         return returnResult;
     }returnResult += 1;
@@ -219,7 +218,6 @@ int revoke_certificate(const std::string& certPath, const std::string& revokedLi
     X509* cert = PEM_read_X509(certFile, nullptr, nullptr, nullptr);
     fclose(certFile);
     if (!cert) {
-        cout << "Hello2" << endl;
         std::cerr << "Error: Failed to read certificate.\n";
         return returnResult;
     }returnResult += 1;
@@ -235,20 +233,19 @@ int revoke_certificate(const std::string& certPath, const std::string& revokedLi
 
     std::ofstream file(revokedListFile, std::ios::app);
     if (!file.is_open()) {
-        cout << "Hello3" << endl;
         std::cerr << "Error: Failed to open revoked list file.\n";
         return returnResult;
     }returnResult += 1;
 
-    cout << "Hello4" << endl;
+
     cout << returnResult << endl;
-    cout << "Hello5" << endl;
+
 
     file << serialHex << std::endl;
-    cout << "Hello6" << endl;
+   
 
     file.close();
-    cout << "Hello7" << endl;
+    
 
     return 0;
 }
